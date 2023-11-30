@@ -1,36 +1,89 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
+[RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {
-    public float moveSpeed = 5f; // Snelheid van de speler
-    private Rigidbody rb;
+    public Camera playerCamera;
+    public AudioClip jumpSound;
+    public float walkSpeed = 6f;
+    public float runSpeed = 12f;
+    public float jumpPower = 7f;
+    public float gravity = 10f;
+    public float lookSpeed = 2f;
+    public float lookXLimit = 45f;
+    public float defaultHeight = 2f;
+    public float crouchHeight = 1f;
+    public float crouchSpeed = 3f;
+
+    private Vector3 moveDirection = Vector3.zero;
+    private float rotationX = 0;
+    private CharacterController characterController;
+    private AudioSource audioSource;
+
+    private bool canMove = true;
 
     void Start()
     {
-        rb = GetComponent<Rigidbody>();
-        // Zet constraints om rotatie te voorkomen
-        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationY | RigidbodyConstraints.FreezeRotationZ;
+        characterController = GetComponent<CharacterController>();
+        Cursor.lockState = CursorLockMode.Locked;
+        audioSource = GetComponent<AudioSource>();
+        Cursor.visible = false;
     }
 
-    // Update wordt elke frame aangeroepen
     void Update()
     {
-        // Input van de toetsen z, s, q, d
-        float horizontalInput = Input.GetAxis("Horizontal"); // Dit wordt q (-1) of d (1)
-        float verticalInput = Input.GetAxis("Vertical"); // Dit wordt s (-1) of z (1)
+        Vector3 forward = transform.TransformDirection(Vector3.forward);
+        Vector3 right = transform.TransformDirection(Vector3.right);
 
+        bool isRunning = Input.GetKey(KeyCode.LeftShift);
+        float curSpeedX = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Vertical") : 0;
+        float curSpeedY = canMove ? (isRunning ? runSpeed : walkSpeed) * Input.GetAxis("Horizontal") : 0;
+        float movementDirectionY = moveDirection.y;
+        moveDirection = (forward * curSpeedX) + (right * curSpeedY);
 
-        // Bereken de bewegingsrichting
-        Vector3 moveDirection = new Vector3(horizontalInput, 0f, verticalInput).normalized;
-
-        // Als er input is, beweeg de speler
-        if (moveDirection != Vector3.zero)
+        if (Input.GetButton("Jump") && canMove && characterController.isGrounded)
         {
-            // Bereken de nieuwe positie
-            Vector3 newPosition = transform.position + transform.TransformDirection(moveDirection) * moveSpeed * Time.deltaTime;
+            moveDirection.y = jumpPower;
 
-            // Verplaats de speler naar de nieuwe positie
-            rb.MovePosition(newPosition);
+            if (jumpSound != null) // Controleer of het jumpSound AudioClip is ingesteld
+            {
+                audioSource.PlayOneShot(jumpSound); // Speel het geluid af wanneer er wordt gesprongen
+            }
+        }
+        else
+        {
+            moveDirection.y = movementDirectionY;
+        }
+
+        if (!characterController.isGrounded)
+        {
+            moveDirection.y -= gravity * Time.deltaTime;
+        }
+
+        if (Input.GetKey(KeyCode.R) && canMove)
+        {
+            characterController.height = crouchHeight;
+            walkSpeed = crouchSpeed;
+            runSpeed = crouchSpeed;
+
+        }
+        else
+        {
+            characterController.height = defaultHeight;
+            walkSpeed = 6f;
+            runSpeed = 12f;
+        }
+
+        characterController.Move(moveDirection * Time.deltaTime);
+
+        if (canMove)
+        {
+            rotationX += -Input.GetAxis("Mouse Y") * lookSpeed;
+            rotationX = Mathf.Clamp(rotationX, -lookXLimit, lookXLimit);
+            playerCamera.transform.localRotation = Quaternion.Euler(rotationX, 0, 0);
+            transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * lookSpeed, 0);
         }
     }
 }

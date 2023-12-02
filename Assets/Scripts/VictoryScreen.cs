@@ -5,6 +5,11 @@ using UnityEngine.SceneManagement;
 
 public class VictoryScreen : MonoBehaviour
 {
+    public void Start()
+    {
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+    }
     public void MainMenu()
     {
         SceneManager.LoadScene("MainMenu");
